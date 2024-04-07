@@ -1,0 +1,162 @@
+substitutions:
+  name: esphome-wbms-34e1b2
+  friendly_name: ESPHome WBMS 34e1b2
+  password: "12345678"
+ 
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  name_add_mac_suffix: false
+  project:
+    name: esphome.wbms
+    version: '1.0'
+
+esp8266:
+  board: esp01_1m
+
+# Enable logging
+logger:
+  level: NONE
+
+ 
+# Enable Home Assistant API
+api:
+  password: "12345678"
+
+# Allow Over-The-Air updates
+ota:
+
+# Allow provisioning Wi-Fi via serial
+improv_serial:
+
+wifi:
+  # Set up a wifi access point
+ ssid: "xxxxx"
+ password: "xxxxxxxxx"
+
+
+
+dashboard_import:
+  package_import_url: github://esphome/example-configs/esphome-web/esp8266.yaml@main
+  import_full_config: true
+
+# To have a "next url" for improv serial
+web_server:
+ port: 80
+
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal Sensor"
+    update_interval: 60s
+  - platform: uptime
+    name: Uptime Sensor
+
+  - platform: template
+    name: "1. Device ID"
+    id: device_id
+
+  - platform: template
+    name: "2. Percent"
+    unit_of_measurement: Percent
+    id: percent_1
+
+  - platform: template
+    name: "4. Residual Capacity"
+    unit_of_measurement: A/h
+    id: cap_1
+
+  - platform: template
+    name: "3. Volt"
+    unit_of_measurement: V
+    id: volt_1
+
+  - platform: template
+    name: "5. Current/Charge-Discharge/"
+    unit_of_measurement: A
+    id: current_1
+
+  - platform: template
+    name: "6. Charging Energy"
+    unit_of_measurement: KWH
+    id: charg_1
+
+  - platform: template
+    name: "7. Discharging Energy"
+    unit_of_measurement: KWH
+    id: dischar_1
+
+  - platform: template
+    name: "8. Temp"
+    unit_of_measurement: C
+    id: temp_1
+
+text_sensor:
+  - platform: template
+    name: "9. Row"
+    id: row_1
+  - platform: wifi_info
+    ip_address:
+      name: ESP IP Address
+    ssid:
+      name: ESP Connected SSID
+
+uart:
+  id: uart_bus
+  rx_pin: 3
+  baud_rate: 9600
+  debug:
+    direction: "RX"
+    dummy_receiver: true
+    after:
+      bytes: 20
+    sequence:
+      - lambda: |-
+          // UARTDebug::log_string(direction, bytes);  
+          if (bytes[0] == 0xB5) {
+          if (bytes[1] == 0x5B) {
+          if (bytes[19] == 0xA8) {
+          id(device_id).publish_state( bytes[2] );
+          id(percent_1).publish_state( bytes[4] );
+
+          //Capacita
+          uint result = bytes[5];
+          uint16_t hex_value = (result << 8) | bytes[6];
+          float decimal_value = hex_value / 10.00;
+          id(cap_1).publish_state( decimal_value );
+          //Volt
+          result = bytes[7];
+          hex_value = (result << 8) | bytes[8];
+          decimal_value = hex_value / 10.00;
+          id(volt_1).publish_state(decimal_value);
+          // current
+          result = bytes[9];
+          hex_value = (result << 8) | bytes[10];
+          decimal_value = hex_value / 10.00;
+          id(current_1).publish_state( decimal_value);
+          //
+          result = bytes[11];
+          result = (result << 8) | bytes[12];
+          hex_value = (result << 8) | bytes[13];
+          decimal_value = hex_value / 1000.00;
+          id(charg_1).publish_state( decimal_value);
+
+          result = bytes[14];
+          result = (result << 8) | bytes[15];
+          hex_value = (result << 8) | bytes[16];
+          decimal_value = hex_value / 1000.00;
+          id(dischar_1).publish_state( decimal_value);
+          result = bytes[17];
+          hex_value = (result << 8) | bytes[18];
+          decimal_value = hex_value / 10.00;
+          id(temp_1).publish_state( decimal_value );
+          char buffer[21 * 2 + 1];
+          for (int i = 0; i < 21; ++i) {
+          sprintf(&buffer[i * 2], "%02X", bytes[i]);
+          }
+          id(row_1).publish_state(buffer);
+          }
+          }
+          }
+
+
+
