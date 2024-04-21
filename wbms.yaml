@@ -94,6 +94,9 @@ text_sensor:
   - platform: template
     name: "9. Row"
     id: row_1
+  - platform: template
+    name: "10. Row settings"
+    id: row_2
   - platform: wifi_info
     ip_address:
       name: ESP IP Address
@@ -109,54 +112,61 @@ uart:
     dummy_receiver: true
     after:
       bytes: 20
-    sequence:
-      - lambda: |-
-          // UARTDebug::log_string(direction, bytes);  
-          if (bytes[0] == 0xB5) {
-          if (bytes[1] == 0x5B) {
-          if (bytes[19] == 0xA8) {
-          id(device_id).publish_state( bytes[2] );
-          id(percent_1).publish_state( bytes[4] );
+     sequence:
+        - lambda: |
+            if (bytes[0] == 0xB5 && bytes[1] == 0x5B && bytes[19] == 0xA8) {
+             // Device ID
+              id(device_id).publish_state(bytes[2]);
 
-          //Capacita
-          uint result = bytes[5];
-          uint16_t hex_value = (result << 8) | bytes[6];
-          float decimal_value = hex_value / 10.00;
-          id(cap_1).publish_state( decimal_value );
-          //Volt
-          result = bytes[7];
-          hex_value = (result << 8) | bytes[8];
-          decimal_value = hex_value / 10.00;
-          id(volt_1).publish_state(decimal_value);
-          // current
-          result = bytes[9];
-          hex_value = (result << 8) | bytes[10];
-          decimal_value = hex_value / 10.00;
-          id(current_1).publish_state( decimal_value);
-          //
-          result = bytes[11];
-          result = (result << 8) | bytes[12];
-          hex_value = (result << 8) | bytes[13];
-          decimal_value = hex_value / 1000.00;
-          id(charg_1).publish_state( decimal_value);
+             // Battery percent
+              id(percent_1).publish_state(bytes[4]);
 
-          result = bytes[14];
-          result = (result << 8) | bytes[15];
-          hex_value = (result << 8) | bytes[16];
-          decimal_value = hex_value / 1000.00;
-          id(dischar_1).publish_state( decimal_value);
-          result = bytes[17];
-          hex_value = (result << 8) | bytes[18];
-          decimal_value = hex_value / 10.00;
-          id(temp_1).publish_state( decimal_value );
-          char buffer[21 * 2 + 1];
-          for (int i = 0; i < 21; ++i) {
-          sprintf(&buffer[i * 2], "%02X", bytes[i]);
-          }
-          id(row_1).publish_state(buffer);
-          }
-          }
-          }
+            // Capacity
+             uint result = bytes[5];
+             uint16_t hex_value = (result << 8) | bytes[6];
+             float decimal_value = hex_value / 10.00;
+             id(cap_1).publish_state(decimal_value);
 
+              // Volt
+             result = bytes[7];
+             hex_value = (result << 8) | bytes[8];
+             decimal_value = hex_value / 10.00;
+             id(volt_1).publish_state(decimal_value);
+
+              // Current Charge/Discharge
+             result = bytes[9];
+             hex_value = (result << 8) | bytes[10];
+             decimal_value = hex_value / 10.00;
+             id(current_1).publish_state(decimal_value);
+
+              // Charge
+              result = bytes[11] * 65536 + bytes[12] * 256 + bytes[13];
+              decimal_value = result / 1000.00;
+              id(charg_1).publish_state(decimal_value);
+
+              // Discharge
+              result = bytes[14] * 65536 + bytes[15] * 256 + bytes[16];
+              decimal_value = result / 1000.00;
+              id(dischar_1).publish_state(decimal_value);
+
+              // Temperature
+             result = bytes[17];
+             hex_value = (result << 8) | bytes[18];
+             decimal_value = hex_value / 10.00;
+             id(temp_1).publish_state(decimal_value);
+
+             // Row
+              char buffer[21 * 2 + 1];
+              for (int i = 0; i < 21; ++i) {
+              sprintf(&buffer[i * 2], "%02X", bytes[i]);
+             }
+             id(row_1).publish_state(buffer);
+              } else {
+              char buffer[21 * 2 + 1];
+              for (int i = 0; i < 21; ++i) {
+              sprintf(&buffer[i * 2], "%02X", bytes[i]);
+              }
+              id(row_2).publish_state(buffer);
+             }
 
 
